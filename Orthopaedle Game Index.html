@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Orthopaedle: six clues, six guesses, one orthopaedic diagnosis.">
+<title>Orthopaedle</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one clipboard-width column. Letter-tile masthead, case picker, a row of six bones as lives,
+   the clue stack, the guess box, then the guess history. */
+:root {
+  --ground: #DCF0EA;      /* theatre-drape mint */
+  --dot: #C3E0D8;
+  --surface: #FBFFFD;     /* plaster white */
+  --ink: #10303B;         /* scrub navy */
+  --ink-soft: #456670;
+  --line: #10303B;
+  --shadow: #10303B;
+  --pink: #DB2D69;        /* fibreglass-cast pink */
+  --pink-ink: #FFFFFF;
+  --bone: #FFF4D6;
+  --bone-lost: #BFD3CF;
+  --hit: #17824A;
+  --hit-ink: #FFFFFF;
+  --near: #F6B93B;
+  --near-ink: #33240A;
+  --miss: #B4C6C7;
+  --miss-ink: #10303B;
+  --focus: #10303B;
+  --font-display: "Bagel Fat One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0A1D27; --dot: #12303C; --surface: #133240; --ink: #E7F5F2; --ink-soft: #9FC0C4;
+    --line: #79AEB8; --shadow: #030E14; --pink: #FF7AA5; --pink-ink: #2B0714; --bone: #EEF8FF;
+    --bone-lost: #2B4B58; --hit: #3DCB85; --hit-ink: #062414; --near: #F6B93B; --near-ink: #2A1D05;
+    --miss: #37535F; --miss-ink: #D5E8EA; --focus: #E7F5F2; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0A1D27; --dot: #12303C; --surface: #133240; --ink: #E7F5F2; --ink-soft: #9FC0C4;
+  --line: #79AEB8; --shadow: #030E14; --pink: #FF7AA5; --pink-ink: #2B0714; --bone: #EEF8FF;
+  --bone-lost: #2B4B58; --hit: #3DCB85; --hit-ink: #062414; --near: #F6B93B; --near-ink: #2A1D05;
+  --miss: #37535F; --miss-ink: #D5E8EA; --focus: #E7F5F2; color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--ground);
+  background-image: radial-gradient(var(--dot) 1.3px, transparent 1.5px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.app {
+  max-width: 41rem;
+  margin-inline: auto;
+  padding-inline: 16px;
+  padding-block: 1.75rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* Masthead */
+.masthead { display: flex; flex-direction: column; gap: 0.9rem; align-items: center; text-align: center; }
+.wordmark {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 3.1rem));
+  gap: clamp(3px, 1vw, 6px);
+  justify-content: center;
+  width: 100%;
+}
+.tile {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.1rem, 5.3vw, 2.05rem);
+  line-height: 1;
+  text-transform: uppercase;
+  border: 2px solid var(--line);
+  border-radius: 22%;
+  box-shadow: 0 3px 0 var(--shadow);
+  background: var(--bone);
+  color: #10303B;
+}
+.tile:nth-child(odd) { transform: rotate(-3deg); }
+.tile:nth-child(even) { transform: rotate(2.5deg); }
+.tile.t-pink { background: var(--pink); color: var(--pink-ink); }
+.tile.t-near { background: var(--near); color: var(--near-ink); }
+.tile.t-hit { background: var(--hit); color: var(--hit-ink); }
+.tagline { margin: 0; font-weight: 600; color: var(--ink-soft); text-wrap: balance; }
+
+/* Case picker */
+.picker { display: flex; flex-direction: column; gap: 0.6rem; }
+.picker-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.cases { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 0.45rem; }
+@media (max-width: 30rem) { .cases { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.case-btn {
+  height: 2.5rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+.case-btn.is-live { border-style: dashed; }
+.case-btn.is-won { background: var(--hit); color: var(--hit-ink); }
+.case-btn.is-lost { background: var(--miss); color: var(--miss-ink); text-decoration: line-through; }
+.case-btn[aria-current="true"] { box-shadow: 0 0 0 3px var(--ground), 0 0 0 6px var(--pink); }
+
+/* How to play */
+.howto { border: 2px dashed var(--line); border-radius: 14px; padding: 0.7rem 1rem; }
+.howto summary { font-weight: 700; cursor: pointer; }
+.howto-body { display: flex; flex-direction: column; gap: 0.6rem; padding-top: 0.7rem; }
+.howto-body p { margin: 0; }
+.legend { display: flex; flex-direction: column; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; gap: 0.6rem; align-items: center; }
+.chip {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 2px solid var(--line);
+  min-width: 7.6rem;
+  text-align: center;
+}
+.chip.s-hit { background: var(--hit); color: var(--hit-ink); }
+.chip.s-near { background: var(--near); color: var(--near-ink); }
+.chip.s-miss { background: var(--miss); color: var(--miss-ink); }
+
+/* Board */
+.board { display: flex; flex-direction: column; gap: 1.1rem; }
+.board-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem 1rem; flex-wrap: wrap; }
+.case-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.9rem; line-height: 1.1; }
+.lives { display: flex; flex-direction: column; gap: 0.2rem; align-items: flex-end; }
+.bones { display: flex; gap: 0.3rem; }
+.bone { width: 2.5rem; height: auto; display: block; overflow: visible; }
+.b-out { fill: var(--line); stroke: var(--line); stroke-width: 4; stroke-linejoin: round; }
+.b-in { fill: var(--bone); }
+.bone.is-broken .b-in { fill: var(--bone-lost); }
+.lives-text { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-soft); margin: 0; }
+
+.clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.clue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--shadow);
+}
+.clue-n {
+  width: 1.9rem; height: 1.9rem;
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-weight: 500; font-size: 0.9rem;
+  border-radius: 50%;
+  background: var(--ink); color: var(--ground);
+}
+.clue-text { margin: 0; min-width: 0; }
+.clue.is-new .clue-n { background: var(--pink); color: var(--pink-ink); }
+.clue.is-locked {
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+  padding-block: 0.45rem;
+  align-items: center;
+  color: var(--ink-soft);
+}
+.clue.is-locked .clue-n { background: transparent; color: var(--ink-soft); border: 2px dashed var(--line); width: 1.6rem; height: 1.6rem; font-size: 0.8rem; }
+.clue.is-locked .clue-text { font-family: var(--font-mono); font-size: 0.8rem; }
+
+/* Guess form */
+.guess-form { display: flex; flex-direction: column; gap: 0.55rem; }
+.combo { position: relative; }
+.guess-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+}
+.guess-input::placeholder { color: var(--ink-soft); font-weight: 500; opacity: 1; }
+.suggestions {
+  position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px);
+  margin: 0; padding: 0.3rem; list-style: none;
+  max-height: 16rem; overflow-y: auto;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--shadow);
+}
+.suggestions li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem;
+  padding: 0.5rem 0.65rem; border-radius: 8px; cursor: pointer;
+}
+.suggestions li .opt-name { min-width: 0; font-weight: 600; }
+.suggestions li .opt-ch { flex: none; font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.suggestions li[aria-selected="true"] { background: var(--ink); color: var(--ground); }
+.suggestions li[aria-selected="true"] .opt-ch { color: var(--ground); }
+.suggestions li.is-empty { cursor: default; color: var(--ink-soft); }
+.form-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.btn {
+  padding: 0.7rem 1.15rem;
+  font-weight: 800;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 4px 0 var(--shadow);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--shadow); }
+.btn.is-primary { background: var(--pink); color: var(--pink-ink); flex: 1 1 12rem; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.is-quiet { box-shadow: none; font-weight: 600; padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+.hint { margin: 0; font-size: 0.9rem; color: var(--ink-soft); min-height: 1.35em; }
+
+/* Guess history */
+.history { display: flex; flex-direction: column; gap: 0.5rem; }
+.guesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.guess {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) 8.6rem;
+  gap: 0.7rem;
+  align-items: center;
+  padding-block: 0.55rem;
+  border-bottom: 2px dashed var(--dot);
+}
+.guess:last-child { border-bottom: 0; }
+.guess-n { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-soft); }
+.guess-name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.guess.is-pass .guess-name { font-weight: 500; font-style: italic; color: var(--ink-soft); }
+.gtile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 2.9rem; padding: 0.3rem 0.4rem; text-align: center;
+  border: 2px solid var(--line); border-radius: 10px;
+  background: var(--miss); color: var(--miss-ink);
+  line-height: 1.2;
+}
+.gtile b { font-family: var(--font-mono); font-weight: 500; font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.gtile span { font-size: 0.8rem; font-weight: 700; }
+.gtile.s-hit { background: var(--hit); color: var(--hit-ink); }
+.gtile.s-near { background: var(--near); color: var(--near-ink); }
+.gtile.s-pass { background: transparent; color: var(--ink-soft); border-style: dashed; }
+
+/* Result */
+.result {
+  display: flex; flex-direction: column; gap: 0.8rem;
+  padding: 1.2rem 1.2rem 1.3rem;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 var(--shadow);
+}
+.result-kicker { align-self: flex-start; padding: 0.2rem 0.6rem; border-radius: 6px; border: 2px solid var(--line); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.result.is-won .result-kicker { background: var(--hit); color: var(--hit-ink); }
+.result.is-lost .result-kicker { background: var(--miss); color: var(--miss-ink); }
+.result-answer { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(1.5rem, 6vw, 2.1rem); line-height: 1.12; text-wrap: balance; }
+.result-quip { margin: 0; font-weight: 700; }
+.result-pearl { margin: 0; }
+.share-box { width: 100%; min-height: 4.2rem; padding: 0.6rem; font-family: var(--font-mono); font-size: 0.9rem; border: 2px dashed var(--line); border-radius: 10px; background: var(--ground); color: var(--ink); resize: none; }
+
+.foot { display: flex; flex-direction: column; gap: 0.6rem; align-items: center; text-align: center; color: var(--ink-soft); font-size: 0.9rem; }
+.foot p { margin: 0; max-width: 34rem; }
+.reset-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .clue.is-new { animation: pop 380ms cubic-bezier(.2, 1.4, .4, 1) both; }
+  .guess.is-fresh .gtile { animation: flip 520ms ease both; }
+  .bone.just-broke { animation: crack 480ms ease both; }
+  .bones.is-won .bone:not(.is-broken) { animation: hop 520ms ease both; }
+  .bones.is-won .bone:nth-child(2) { animation-delay: 60ms; }
+  .bones.is-won .bone:nth-child(3) { animation-delay: 120ms; }
+  .bones.is-won .bone:nth-child(4) { animation-delay: 180ms; }
+  .bones.is-won .bone:nth-child(5) { animation-delay: 240ms; }
+  .bones.is-won .bone:nth-child(6) { animation-delay: 300ms; }
+  .result.is-fresh { animation: pop 420ms cubic-bezier(.2, 1.3, .4, 1) both; }
+}
+@keyframes pop { from { transform: translateY(10px) scale(0.96); opacity: 0.2; } to { transform: none; opacity: 1; } }
+@keyframes flip { 0% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+@keyframes crack { 0% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-3px) rotate(-6deg); } 50% { transform: translateX(3px) rotate(5deg); } 75% { transform: translateX(-2px) rotate(-3deg); } 100% { transform: none; } }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-9px) rotate(-8deg); } }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="masthead">
+    <h1 class="wordmark" aria-label="Orthopaedle">
+      <span class="tile" aria-hidden="true">O</span><span class="tile" aria-hidden="true">r</span><span class="tile" aria-hidden="true">t</span><span class="tile" aria-hidden="true">h</span><span class="tile" aria-hidden="true">o</span><span class="tile t-pink" aria-hidden="true">p</span><span class="tile t-near" aria-hidden="true">a</span><span class="tile t-hit" aria-hidden="true">e</span><span class="tile t-pink" aria-hidden="true">d</span><span class="tile t-near" aria-hidden="true">l</span><span class="tile t-hit" aria-hidden="true">e</span>
+    </h1>
+    <p class="tagline">Six clues. Six guesses. One orthopaedic diagnosis.</p>
+  </header>
+
+  <nav class="picker" aria-label="Choose a case">
+    <div class="picker-head">
+      <p class="label">Ten cases</p>
+      <p class="label" id="tally"></p>
+    </div>
+    <div class="cases" id="cases"></div>
+  </nav>
+
+  <details class="howto" id="howto">
+    <summary>How to play</summary>
+    <div class="howto-body">
+      <p>Each case opens with one clue. Name the diagnosis. Every wrong guess, or pass, breaks a bone and unlocks the next clue. You have six bones.</p>
+      <p>Each guess comes back with a tile:</p>
+      <ul class="legend">
+        <li><span class="chip s-hit">Correct</span><span>You named the diagnosis.</span></li>
+        <li><span class="chip s-near">Right chapter</span><span>Wrong diagnosis, but it sits in the same chapter as the answer.</span></li>
+        <li><span class="chip s-miss">Wrong chapter</span><span>The answer is filed somewhere else.</span></li>
+      </ul>
+      <p>The chapters are Shoulder, Elbow &amp; forearm, Hand &amp; wrist, Spine, Hip &amp; pelvis, Knee, Thigh &amp; leg, Foot &amp; ankle, Tumour and Systemic. A diagnosis tied to one body region is filed under that region. Tumours and systemic conditions that can turn up anywhere have their own chapters.</p>
+    </div>
+  </details>
+
+  <main class="board">
+    <div class="board-head">
+      <h2 class="case-title" id="case-title">Case 1</h2>
+      <div class="lives">
+        <div class="bones" id="bones" role="img"></div>
+        <p class="lives-text" id="lives-text"></p>
+      </div>
+    </div>
+
+    <ol class="clues" id="clues"></ol>
+
+    <form class="guess-form" id="guess-form" autocomplete="off" novalidate>
+      <label class="label" for="guess-input">Your diagnosis</label>
+      <div class="combo">
+        <input class="guess-input" id="guess-input" type="text" role="combobox" aria-autocomplete="list"
+               aria-expanded="false" aria-controls="suggestions" placeholder="Start typing, e.g. scaphoid" spellcheck="false">
+        <ul class="suggestions" id="suggestions" role="listbox" aria-label="Diagnoses" hidden></ul>
+      </div>
+      <div class="form-row">
+        <button class="btn is-primary" id="guess-btn" type="submit" disabled>Lock in diagnosis</button>
+        <button class="btn" id="pass-btn" type="button">Pass, next clue</button>
+      </div>
+      <p class="hint" id="hint" aria-live="polite"></p>
+    </form>
+
+    <section class="result" id="result" hidden tabindex="-1" aria-labelledby="result-answer">
+      <span class="result-kicker" id="result-kicker"></span>
+      <h3 class="result-answer" id="result-answer"></h3>
+      <p class="result-quip" id="result-quip"></p>
+      <p class="result-pearl" id="result-pearl"></p>
+      <div class="form-row">
+        <button class="btn is-primary" id="next-btn" type="button">Next case</button>
+        <button class="btn" id="share-btn" type="button">Copy result</button>
+      </div>
+      <textarea class="share-box" id="share-box" readonly hidden aria-label="Your result, ready to copy"></textarea>
+    </section>
+
+    <section class="history" id="history" hidden>
+      <p class="label">Your guesses</p>
+      <ol class="guesses" id="guesses"></ol>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Cases are fictional teaching vignettes. For fun and revision, not for clinical decisions.</p>
+    <div class="reset-row" id="reset-row">
+      <button class="btn is-quiet" id="reset-btn" type="button">Reset all progress</button>
+    </div>
+  </footer>
+  <p class="sr-only" id="live" aria-live="assertive"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var MAX = 6;
+  var STORE_KEY = 'orthopaedle.v1';
+
+  var CH = {
+    sh: 'Shoulder', el: 'Elbow & forearm', ha: 'Hand & wrist', sp: 'Spine', hi: 'Hip & pelvis',
+    kn: 'Knee', le: 'Thigh & leg', fo: 'Foot & ankle', tu: 'Tumour', sy: 'Systemic'
+  };
+
+  // [id, name, chapter, extra search terms]
+  var DX_RAW = [
+    // Shoulder
+    ['ant-shoulder', 'Anterior shoulder dislocation', 'sh', 'glenohumeral bankart hill-sachs'],
+    ['post-shoulder', 'Posterior shoulder dislocation', 'sh', 'glenohumeral reverse hill-sachs mclaughlin'],
+    ['cuff', 'Rotator cuff tear', 'sh', 'supraspinatus'],
+    ['frozen', 'Adhesive capsulitis (frozen shoulder)', 'sh', ''],
+    ['acj', 'Acromioclavicular joint dislocation', 'sh', 'ac joint acj rockwood'],
+    ['prox-humerus', 'Proximal humerus fracture', 'sh', 'neer'],
+    ['clavicle', 'Clavicle fracture', 'sh', ''],
+    ['calcific', 'Calcific tendinitis of the shoulder', 'sh', ''],
+    ['slap', 'SLAP tear', 'sh', 'superior labrum'],
+    ['lhb', 'Long head of biceps tendon rupture', 'sh', 'popeye'],
+    // Elbow & forearm
+    ['monteggia', 'Monteggia fracture-dislocation', 'el', 'bado ulna radial head'],
+    ['galeazzi', 'Galeazzi fracture-dislocation', 'el', 'druj radius'],
+    ['essex', 'Essex-Lopresti injury', 'el', 'interosseous membrane'],
+    ['supracondylar', 'Supracondylar humerus fracture', 'el', 'gartland'],
+    ['lat-condyle', 'Lateral condyle fracture of the humerus', 'el', 'milch'],
+    ['terrible', 'Terrible triad of the elbow', 'el', 'coronoid'],
+    ['radial-head', 'Radial head fracture', 'el', 'mason'],
+    ['olecranon', 'Olecranon fracture', 'el', ''],
+    ['pulled-elbow', 'Pulled elbow (radial head subluxation)', 'el', 'nursemaid'],
+    ['tennis-elbow', 'Lateral epicondylitis (tennis elbow)', 'el', 'ecrb'],
+    ['distal-biceps', 'Distal biceps tendon rupture', 'el', 'hook test'],
+    ['cubital', 'Cubital tunnel syndrome', 'el', 'ulnar neuropathy'],
+    ['pin', 'Posterior interosseous nerve syndrome', 'el', 'pin palsy radial tunnel'],
+    // Hand & wrist
+    ['sl', 'Scapholunate ligament injury (scapholunate dissociation)', 'ha', 'sl slil disi terry thomas slac'],
+    ['scaphoid', 'Scaphoid fracture', 'ha', 'snuffbox'],
+    ['perilunate', 'Perilunate dislocation', 'ha', 'lunate mayfield'],
+    ['lt', 'Lunotriquetral ligament injury', 'ha', 'lt visi'],
+    ['kienbock', 'Kienböck disease', 'ha', 'lunate avascular necrosis osteonecrosis lichtman'],
+    ['distal-radius', 'Distal radius fracture', 'ha', 'colles smith barton'],
+    ['tfcc', 'TFCC tear', 'ha', 'triangular fibrocartilage'],
+    ['dequervain', 'De Quervain tenosynovitis', 'ha', 'finkelstein'],
+    ['cts', 'Carpal tunnel syndrome', 'ha', 'median nerve'],
+    ['pft', 'Pyogenic flexor tenosynovitis', 'ha', 'kanavel flexor sheath infection'],
+    ['felon', 'Felon (pulp space infection)', 'ha', ''],
+    ['finger-septic', 'Septic arthritis of a finger joint', 'ha', 'fight bite'],
+    ['dupuytren', 'Dupuytren disease', 'ha', 'contracture'],
+    ['trigger', 'Trigger finger', 'ha', 'stenosing tenosynovitis a1 pulley'],
+    ['skier', 'Skier’s thumb (thumb UCL injury)', 'ha', 'gamekeeper stener ulnar collateral skiers'],
+    ['bennett', 'Bennett fracture', 'ha', 'thumb metacarpal base'],
+    ['mallet', 'Mallet finger', 'ha', 'terminal extensor'],
+    ['jersey', 'Jersey finger (FDP avulsion)', 'ha', 'leddy packer'],
+    // Spine
+    ['ces', 'Cauda equina syndrome', 'sp', 'ces saddle anaesthesia'],
+    ['conus', 'Conus medullaris syndrome', 'sp', ''],
+    ['disc', 'Lumbar disc herniation with radiculopathy', 'sp', 'sciatica prolapse'],
+    ['stenosis', 'Lumbar spinal stenosis', 'sp', 'neurogenic claudication'],
+    ['myelopathy', 'Degenerative cervical myelopathy', 'sp', 'spondylotic'],
+    ['central-cord', 'Central cord syndrome', 'sp', ''],
+    ['spondylolisthesis', 'Spondylolisthesis', 'sp', 'spondylolysis pars'],
+    ['ank-spond', 'Ankylosing spondylitis', 'sp', 'hla-b27 bamboo'],
+    ['discitis', 'Vertebral osteomyelitis (discitis)', 'sp', 'spondylodiscitis'],
+    ['epidural', 'Spinal epidural abscess', 'sp', ''],
+    ['ais', 'Adolescent idiopathic scoliosis', 'sp', 'cobb'],
+    ['odontoid', 'Odontoid fracture', 'sp', 'dens c2 anderson d’alonzo'],
+    ['burst', 'Thoracolumbar burst fracture', 'sp', ''],
+    ['scheuermann', 'Scheuermann kyphosis', 'sp', ''],
+    // Hip & pelvis
+    ['scfe', 'Slipped capital femoral epiphysis (SCFE / SUFE)', 'hi', 'slipped upper femoral epiphysis'],
+    ['perthes', 'Perthes disease', 'hi', 'legg calve perthes'],
+    ['ddh', 'Developmental dysplasia of the hip', 'hi', 'ddh ortolani barlow'],
+    ['transient', 'Transient synovitis of the hip', 'hi', 'irritable hip'],
+    ['hip-septic', 'Septic arthritis of the hip', 'hi', 'kocher'],
+    ['fai', 'Femoroacetabular impingement', 'hi', 'fai cam pincer'],
+    ['avn-hip', 'Avascular necrosis of the femoral head', 'hi', 'osteonecrosis avn ficat'],
+    ['nof', 'Femoral neck fracture', 'hi', 'nof garden pauwels'],
+    ['nof-stress', 'Femoral neck stress fracture', 'hi', ''],
+    ['intertroch', 'Intertrochanteric fracture', 'hi', 'pertrochanteric'],
+    ['post-hip', 'Posterior hip dislocation', 'hi', ''],
+    ['hip-oa', 'Hip osteoarthritis', 'hi', ''],
+    ['pelvic-ring', 'Pelvic ring injury', 'hi', 'open book young burgess'],
+    ['acetabulum', 'Acetabular fracture', 'hi', 'letournel judet'],
+    ['gtps', 'Greater trochanteric pain syndrome', 'hi', 'gluteal tendinopathy trochanteric bursitis'],
+    // Knee
+    ['plc', 'Posterolateral corner injury of the knee', 'kn', 'plc fibular collateral popliteus popliteofibular'],
+    ['acl', 'ACL rupture', 'kn', 'anterior cruciate ligament'],
+    ['pcl', 'PCL rupture', 'kn', 'posterior cruciate ligament'],
+    ['mcl', 'MCL injury', 'kn', 'medial collateral ligament'],
+    ['meniscus', 'Meniscal tear', 'kn', 'bucket handle root'],
+    ['patella-disloc', 'Patellar dislocation', 'kn', 'mpfl'],
+    ['patellar-tendon', 'Patellar tendon rupture', 'kn', 'extensor mechanism'],
+    ['quads-tendon', 'Quadriceps tendon rupture', 'kn', 'extensor mechanism'],
+    ['plateau', 'Tibial plateau fracture', 'kn', 'schatzker'],
+    ['knee-disloc', 'Knee dislocation (multiligament injury)', 'kn', 'schenck kd'],
+    ['ocd', 'Osteochondritis dissecans of the knee', 'kn', 'ocd'],
+    ['osgood', 'Osgood–Schlatter disease', 'kn', 'tibial tubercle apophysitis'],
+    ['knee-oa', 'Knee osteoarthritis', 'kn', ''],
+    ['knee-septic', 'Septic arthritis of the knee', 'kn', ''],
+    ['blount', 'Blount disease (tibia vara)', 'kn', ''],
+    ['patella-fx', 'Patella fracture', 'kn', ''],
+    // Thigh & leg
+    ['acs', 'Acute compartment syndrome of the leg', 'le', 'fasciotomy'],
+    ['cecs', 'Chronic exertional compartment syndrome', 'le', ''],
+    ['tibial-shaft', 'Tibial shaft fracture', 'le', ''],
+    ['femoral-shaft', 'Femoral shaft fracture', 'le', ''],
+    ['tibial-stress', 'Tibial stress fracture', 'le', 'dreaded black line'],
+    ['mtss', 'Medial tibial stress syndrome (shin splints)', 'le', ''],
+    ['cpn', 'Common peroneal nerve palsy', 'le', 'foot drop fibular nerve'],
+    ['dvt', 'Deep vein thrombosis', 'le', 'dvt'],
+    ['ischaemia', 'Acute limb ischaemia', 'le', 'arterial injury popliteal artery ischemia'],
+    ['tennis-leg', 'Gastrocnemius tear (tennis leg)', 'le', 'calf'],
+    // Foot & ankle
+    ['lisfranc', 'Lisfranc injury (tarsometatarsal joint complex)', 'fo', 'tmt midfoot fleck'],
+    ['achilles', 'Achilles tendon rupture', 'fo', 'thompson simmonds'],
+    ['ankle-fx', 'Ankle fracture', 'fo', 'weber lauge-hansen malleolus'],
+    ['syndesmosis', 'Syndesmosis injury (high ankle sprain)', 'fo', ''],
+    ['ankle-sprain', 'Lateral ankle ligament sprain', 'fo', 'atfl'],
+    ['calcaneus', 'Calcaneal fracture', 'fo', 'bohler sanders'],
+    ['talar-neck', 'Talar neck fracture', 'fo', 'hawkins'],
+    ['jones', 'Jones fracture (fifth metatarsal)', 'fo', ''],
+    ['navicular', 'Navicular stress fracture', 'fo', ''],
+    ['mt-stress', 'Metatarsal stress fracture', 'fo', 'march fracture'],
+    ['charcot', 'Charcot neuroarthropathy', 'fo', 'diabetic foot'],
+    ['plantar-fasc', 'Plantar fasciitis', 'fo', ''],
+    ['pttd', 'Tibialis posterior tendon dysfunction', 'fo', 'adult acquired flatfoot pttd'],
+    ['coalition', 'Tarsal coalition', 'fo', 'calcaneonavicular talocalcaneal'],
+    ['clubfoot', 'Clubfoot (congenital talipes equinovarus)', 'fo', 'ctev ponseti'],
+    ['turf-toe', 'Turf toe', 'fo', 'plantar plate'],
+    ['hallux-rigidus', 'Hallux rigidus', 'fo', ''],
+    // Tumour
+    ['oo', 'Osteoid osteoma', 'tu', 'nidus'],
+    ['osteoblastoma', 'Osteoblastoma', 'tu', ''],
+    ['osteosarcoma', 'Osteosarcoma', 'tu', 'codman sunburst'],
+    ['ewing', 'Ewing sarcoma', 'tu', 'onion skin'],
+    ['chondrosarcoma', 'Chondrosarcoma', 'tu', ''],
+    ['gct', 'Giant cell tumour of bone', 'tu', 'gct'],
+    ['osteochondroma', 'Osteochondroma', 'tu', 'exostosis'],
+    ['enchondroma', 'Enchondroma', 'tu', ''],
+    ['chondroblastoma', 'Chondroblastoma', 'tu', ''],
+    ['fibrous-dysplasia', 'Fibrous dysplasia', 'tu', 'shepherd crook ground glass'],
+    ['nof-tumour', 'Non-ossifying fibroma', 'tu', 'fibrous cortical defect'],
+    ['abc', 'Aneurysmal bone cyst', 'tu', 'abc'],
+    ['ubc', 'Unicameral (simple) bone cyst', 'tu', 'ubc fallen leaf'],
+    ['lch', 'Langerhans cell histiocytosis (eosinophilic granuloma)', 'tu', 'lch vertebra plana'],
+    ['myeloma', 'Multiple myeloma', 'tu', 'plasmacytoma'],
+    ['mets', 'Metastatic bone disease', 'tu', 'metastasis mirels'],
+    // Systemic
+    ['osteomyelitis', 'Acute haematogenous osteomyelitis', 'sy', 'hematogenous infection'],
+    ['brodie', 'Brodie abscess (subacute osteomyelitis)', 'sy', ''],
+    ['paget', 'Paget disease of bone', 'sy', ''],
+    ['rickets', 'Rickets', 'sy', 'vitamin d'],
+    ['oi', 'Osteogenesis imperfecta', 'sy', 'brittle bone'],
+    ['gout', 'Gout', 'sy', 'urate tophus'],
+    ['ra', 'Rheumatoid arthritis', 'sy', '']
+  ];
+
+  var CASES = [
+    {
+      answer: 'scfe',
+      clues: [
+        'Five weeks of a vague, activity-related ache felt in the distal medial thigh and knee. Examination of the knee itself is entirely normal.',
+        'The gait is antalgic with an externally rotated foot progression angle. Hip internal rotation is markedly reduced compared with the other side.',
+        'The patient is a 12-year-old boy with a BMI above the 95th centile. He is afebrile and his inflammatory markers are normal.',
+        'Drehmann sign is positive: as the hip is passively flexed, the thigh is obliged to abduct and externally rotate.',
+        'AP pelvis: the physis is widened and irregular, with a metaphyseal blanch sign of Steel. Klein’s line, drawn along the superior border of the femoral neck, no longer intersects the lateral epiphysis (Trethowan sign).',
+        'Frog-leg lateral: the epiphysis lies posterior and inferior to the femoral neck, with an increased Southwick epiphyseal–shaft angle. He can bear weight, so it is stable on the Loder classification. Plan: in-situ fixation with a single cannulated screw.'
+      ],
+      pearl: 'Knee pain in an adolescent is a hip problem until proven otherwise; the referred pain is classically attributed to the obturator nerve. Loder stability, meaning whether the child can bear weight, predicts the risk of osteonecrosis, which is far higher in unstable slips.'
+    },
+    {
+      answer: 'post-shoulder',
+      clues: [
+        'A 45-year-old man is referred with a “frozen shoulder” that has not improved after three weeks of physiotherapy. The emergency department AP radiograph was reported as normal.',
+        'The arm is held adducted and internally rotated. Passive external rotation is mechanically blocked short of neutral, and he cannot fully supinate the forearm with the arm flexed forward.',
+        'Viewed from above, the front of the shoulder is flattened with a prominent coracoid process, and there is fullness posteriorly.',
+        'The pain began on the morning after a nocturnal generalised tonic–clonic seizure.',
+        'On review, the AP radiograph shows a rounded, symmetrical humeral head (lightbulb sign), an empty-looking glenoid with a rim sign wider than 6 mm, and a vertical trough line in the head.',
+        'Axillary view and CT: the humeral head is locked on the posterior glenoid rim by an anteromedial impaction fracture, a reverse Hill–Sachs (McLaughlin) lesion, involving 25% of the articular surface.'
+      ],
+      pearl: 'Seizures, electric shock and electroconvulsive therapy cause this injury because the internal rotators overpower the external rotators. It is often missed at first presentation because the AP view can look near normal, so always get an axillary lateral. Medium-sized head defects are classically filled by transferring subscapularis or the lesser tuberosity (McLaughlin procedure and Neer’s modification).'
+    },
+    {
+      answer: 'lisfranc',
+      clues: [
+        'A 22-year-old footballer cannot push off or stand on tiptoe after another player landed on his heel while his foot was planted in plantarflexion. Non-weight-bearing radiographs were reported as normal.',
+        'With the hindfoot held still, passive pronation and abduction of the forefoot reproduces his pain. So does moving the metatarsal heads up and down against a stabilised midfoot (piano key test).',
+        'Bruising has appeared on the plantar surface of the medial arch.',
+        'Bilateral weight-bearing AP views: on the injured side the medial border of the second metatarsal base no longer lines up with the medial border of the middle cuneiform, and there is 4 mm of diastasis between the first and second metatarsal bases.',
+        'A small fleck of bone sits in the first intermetatarsal space, avulsed from the base of the second metatarsal (fleck sign).',
+        'The injured structure runs obliquely from the lateral surface of the medial cuneiform to the medial base of the second metatarsal. There is no intermetatarsal ligament between the first and second metatarsal bases, so nothing else holds that interval.'
+      ],
+      pearl: 'The second metatarsal base is recessed between the medial and lateral cuneiforms like the keystone of an arch. These injuries are frequently missed on non-weight-bearing films, so ask for weight-bearing views with the other foot for comparison. Unstable injuries need anatomical reduction and rigid fixation, and primary arthrodesis is a well-supported option for purely ligamentous patterns.'
+    },
+    {
+      answer: 'oo',
+      clues: [
+        'A 17-year-old has had four months of dull, boring pain in the proximal thigh. It is unrelated to activity and reliably wakes him at night.',
+        'He is systemically well, and FBC, CRP and ESR are normal. Radiographs show dense, fusiform cortical thickening and sclerosis of the proximal femoral shaft.',
+        'The pain disappears within about half an hour of a dose of aspirin or an NSAID, and returns as the dose wears off.',
+        'Technetium bone scan: intense focal uptake with a double-density sign.',
+        'Thin-slice CT: a 9 mm round, radiolucent intracortical nidus with a central dot of mineralisation, surrounded by reactive sclerosis.',
+        'Histology of the nidus: anastomosing trabeculae of osteoid and woven bone rimmed by osteoblasts, set in a richly vascular fibrous stroma. First-line treatment is CT-guided radiofrequency ablation.'
+      ],
+      pearl: 'The nidus produces high levels of prostaglandins, which explains both the night pain and the striking response to NSAIDs. By convention the nidus is smaller than about 1.5 to 2 cm; a larger lesion with the same histology is called an osteoblastoma. In the spine it causes a painful scoliosis, with the lesion on the concave side of the curve.'
+    },
+    {
+      answer: 'ces',
+      clues: [
+        'A 38-year-old woman with years of mechanical low back pain develops, over 36 hours, severe pain radiating down the back of both legs to the feet.',
+        'Ankle jerks are absent on both sides and plantar responses are flexor. Plantarflexion is weak bilaterally, tone is reduced and there is no clonus.',
+        'She can no longer feel the toilet paper when she wipes. Pinprick sensation is reduced over the S3 to S5 dermatomes.',
+        'She has not passed urine for 12 hours and feels no urge to. A bladder scan shows 800 mL.',
+        'Rectal examination: reduced resting tone, weak voluntary squeeze and an absent anal wink.',
+        'Urgent MRI: a massive central L4/5 disc extrusion fills the canal and effaces the CSF around the nerve roots. She goes to theatre for emergency decompression and discectomy.'
+      ],
+      pearl: 'This is a lower motor neurone picture: areflexia, flaccid sphincters and saddle anaesthesia. The lesion lies below the conus, which ends at about L1 to L2, so there are no upper motor neurone signs. Painless retention with overflow marks the complete form (CES-R), which carries a worse prognosis than the incomplete form (CES-I).'
+    },
+    {
+      answer: 'sl',
+      clues: [
+        'Eight weeks after a fall onto an outstretched hand, a 34-year-old climber has persistent dorsoradial wrist pain, a weak grip and a clunk when the wrist is loaded. Radiographs taken on the day were reported as normal.',
+        'Tenderness is maximal dorsally, in the soft spot just distal to Lister’s tubercle. Repeat radiographs and an MRI show no fracture.',
+        'Watson’s shift test is positive: with the examiner’s thumb pressing on the scaphoid tubercle, moving the wrist from ulnar to radial deviation reproduces the pain, and releasing the thumb produces a clunk.',
+        'A true lateral radiograph shows the lunate tilted dorsally and a scapholunate angle of 80° (normal 30° to 60°): a dorsal intercalated segment instability pattern.',
+        'Clenched-fist PA view: a 5 mm gap between the scaphoid and lunate (Terry-Thomas sign), with a cortical ring sign from the flexed scaphoid.',
+        'Left untreated, the predictable end stage is a SLAC wrist: arthritis that begins at the radial styloid, spreads through the radioscaphoid joint and then reaches the capitolunate joint, sparing the radiolunate joint.'
+      ],
+      pearl: 'The scapholunate interosseous ligament is C-shaped, and its dorsal portion is the thickest and strongest. Once it fails, the scaphoid flexes while the lunate extends with the triquetrum, which is the DISI deformity seen on the lateral view.'
+    },
+    {
+      answer: 'acs',
+      clues: [
+        'Six hours after a closed diaphyseal tibial fracture was splinted, a 24-year-old man’s opioid requirement keeps climbing. The foot is warm, with palpable pulses and brisk capillary refill.',
+        'He reports new paraesthesia, and light touch is reduced in the first dorsal web space.',
+        'Passive plantarflexion of the great toe and ankle provokes severe pain in the front of the leg.',
+        'The anterior leg is tense and woody to palpation. The pain is out of proportion to the injury and is not eased by splitting the dressings down to skin or by resting the limb at heart level.',
+        'Anterior compartment pressure is 52 mmHg with a diastolic blood pressure of 70 mmHg, giving a ΔP of 18 mmHg (threshold: below 30 mmHg).',
+        'Treatment cannot wait: two-incision, four-compartment fasciotomy, with the wounds left open for delayed closure or skin grafting.'
+      ],
+      pearl: 'Pulses are usually preserved, because compartment pressure rarely exceeds systolic pressure. Pain out of proportion and pain on passive stretch are the earliest clinical signs. A ΔP (diastolic pressure minus compartment pressure) below 30 mmHg supports fasciotomy.'
+    },
+    {
+      answer: 'monteggia',
+      clues: [
+        'A 7-year-old fell from the monkey bars onto an outstretched arm. An “isolated ulnar shaft fracture” was treated in an above-elbow cast. At four weeks the fracture is healing, but elbow flexion and forearm rotation remain blocked.',
+        'A firm, bony prominence is palpable in the antecubital fossa, and it turns under the examining finger as the forearm is rotated.',
+        'He cannot extend the fingers at the MCP joints or extend the thumb. Wrist extension is preserved but drifts into radial deviation, and sensation is normal.',
+        'On a true lateral radiograph of the elbow, a line drawn along the axis of the radial neck does not pass through the capitellum.',
+        'The ulnar fracture is in the proximal third with apex-anterior angulation, and the radial head lies anterior to the capitellum: a Bado type I pattern.',
+        'The key to treatment: restore ulnar length and alignment and the radial head usually reduces by itself. If it does not, look for an interposed annular ligament.'
+      ],
+      pearl: 'An ulnar fracture or plastic bowing in a child demands a true lateral of the elbow, because the radiocapitellar line must cross the capitellum on every view. Bado type I, with anterior dislocation of the radial head, is the commonest pattern, and the posterior interosseous nerve is the nerve most often injured.'
+    },
+    {
+      answer: 'plc',
+      clues: [
+        'Six weeks after a blow to the anteromedial proximal tibia with the knee near full extension, a 26-year-old rugby player feels the knee buckle backwards on stairs and when he twists.',
+        'He walks with a varus thrust in early stance.',
+        'Ankle dorsiflexion and great toe extension are 3/5, with numbness over the dorsum of the foot.',
+        'With both legs lifted off the couch by the great toes, the injured knee drops into hyperextension, varus and tibial external rotation.',
+        'Dial test: 15° more tibial external rotation than the uninjured side at 30° of knee flexion (more than 10° is significant), with no side-to-side difference at 90°.',
+        'Radiographs show an avulsion fracture of the fibular styloid (arcuate sign). Varus stress views at 20° of flexion show 4.5 mm more lateral compartment opening than the other side.'
+      ],
+      pearl: 'Three static stabilisers matter most: the fibular collateral ligament, the popliteus tendon and the popliteofibular ligament. A dial test that is asymmetric at 30° only points to an isolated injury, while asymmetry at both 30° and 90° adds the PCL. Missing this injury is a recognised cause of cruciate graft failure.'
+    },
+    {
+      answer: 'pft',
+      clues: [
+        'A 58-year-old gardener with type 2 diabetes has a painful right index finger two days after a rose thorn pricked the volar skin at the PIP flexion crease. Radiographs are normal with no foreign body.',
+        'At rest the finger sits in slight flexion.',
+        'The whole digit is symmetrically swollen in a fusiform shape.',
+        'Tenderness is confined to the volar side and tracks along the line of the flexor tendons into the distal palm.',
+        'Even a few degrees of passive extension of the finger causes exquisite pain along its whole flexor surface.',
+        'All four of Kanavel’s cardinal signs are present. Plan: intravenous antibiotics and urgent sheath irrigation through limited incisions at the A1 and A5 pulleys.'
+      ],
+      pearl: 'The index, middle and ring finger sheaths usually end near the A1 pulley. The thumb and little finger sheaths typically communicate with the radial and ulnar bursae, which meet in Parona’s space at the wrist, the route for a horseshoe abscess. Staphylococcus aureus is the commonest organism.'
+    }
+  ];
+
+  var QUIPS = {
+    1: 'One clue. Bone-afide brilliance.',
+    2: 'Two clues. You clearly did the reading.',
+    3: 'Three clues. A tidy reduction.',
+    4: 'Four clues. A humerus amount of guessing, but you got there.',
+    5: 'Five clues. Tibia honest, we were getting worried.',
+    6: 'Last bone standing. Union achieved, eventually.',
+    lost: 'All six bones broken. Time for a cast and a textbook.'
+  };
+
+  function norm(s) {
+    return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  var DX = DX_RAW.map(function (r) {
+    return { id: r[0], name: r[1], ch: r[2], nameKey: norm(r[1]), key: norm(r[1] + ' ' + r[3] + ' ' + CH[r[2]]) };
+  }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  var BY_ID = {};
+  DX.forEach(function (d) { BY_ID[d.id] = d; });
+
+  // ---------- state ----------
+  var progress = {};   // { caseIndex: [dxId | null, ...] }  null = pass
+  var current = 0;
+  var selected = null; // dx id chosen in the combobox
+  var matches = [];
+  var active = -1;
+  var listOpen = false;
+
+  function loadStore() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+      return sanitise(raw);
+    } catch (e) { return {}; }
+  }
+  function saveStore() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(progress)); } catch (e) { /* play on without saving */ }
+  }
+  function sanitise(raw) {
+    var out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    CASES.forEach(function (c, i) {
+      var g = raw[i];
+      if (!Array.isArray(g)) return;
+      var clean = [];
+      for (var k = 0; k < g.length && clean.length < MAX; k++) {
+        var v = g[k];
+        if (v === null || BY_ID[v]) clean.push(v);
+        if (v === c.answer) break;
+      }
+      if (clean.length) out[i] = clean;
+    });
+    return out;
+  }
+  function guessesOf(i) { return progress[i] || []; }
+  function statusOf(i) {
+    var g = guessesOf(i);
+    if (g.indexOf(CASES[i].answer) !== -1) return 'won';
+    if (g.length >= MAX) return 'lost';
+    return g.length ? 'live' : 'new';
+  }
+  function isDone(i) { var s = statusOf(i); return s === 'won' || s === 'lost'; }
+  function firstOpen(from) {
+    for (var k = 0; k < CASES.length; k++) {
+      var i = (from + k) % CASES.length;
+      if (!isDone(i)) return i;
+    }
+    return -1;
+  }
+
+  // ---------- elements ----------
+  function $(id) { return document.getElementById(id); }
+  var elCases = $('cases'), elTally = $('tally'), elTitle = $('case-title'), elBones = $('bones'),
+      elLivesText = $('lives-text'), elClues = $('clues'), elForm = $('guess-form'), elInput = $('guess-input'),
+      elList = $('suggestions'), elGuessBtn = $('guess-btn'), elPassBtn = $('pass-btn'), elHint = $('hint'),
+      elResult = $('result'), elKicker = $('result-kicker'), elAnswer = $('result-answer'), elQuip = $('result-quip'),
+      elPearl = $('result-pearl'), elNext = $('next-btn'), elShare = $('share-btn'), elShareBox = $('share-box'),
+      elHistory = $('history'), elGuesses = $('guesses'), elLive = $('live'), elResetRow = $('reset-row');
+
+  function make(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function boneSVG(broken, extraClass) {
+    var L = '<circle cx="10" cy="9" r="6"/><circle cx="10" cy="19" r="6"/>';
+    var R = '<circle cx="54" cy="9" r="6"/><circle cx="54" cy="19" r="6"/>';
+    var cls = 'bone' + (broken ? ' is-broken' : '') + (extraClass ? ' ' + extraClass : '');
+    if (!broken) {
+      var s = '<rect x="12" y="10" width="40" height="8"/>' + L + R;
+      return '<svg class="' + cls + '" viewBox="0 0 64 28" aria-hidden="true"><g class="b-out">' + s + '</g><g class="b-in">' + s + '</g></svg>';
+    }
+    var l = '<polygon points="12,10 31,10 28,13 32,15 28,18 12,18"/>' + L;
+    var r = '<polygon points="52,10 36,10 33,13 37,15 34,18 52,18"/>' + R;
+    return '<svg class="' + cls + '" viewBox="0 0 64 28" aria-hidden="true">' +
+      '<g transform="rotate(-9 10 14)"><g class="b-out">' + l + '</g><g class="b-in">' + l + '</g></g>' +
+      '<g transform="rotate(9 54 14)"><g class="b-out">' + r + '</g><g class="b-in">' + r + '</g></g></svg>';
+  }
+
+  // ---------- render ----------
+  function renderPicker() {
+    elCases.textContent = '';
+    var solved = 0, played = 0;
+    CASES.forEach(function (c, i) {
+      var st = statusOf(i);
+      if (st === 'won') solved++;
+      if (st === 'won' || st === 'lost') played++;
+      var b = make('button', 'case-btn is-' + st, String(i + 1));
+      b.type = 'button';
+      b.id = 'case-btn-' + (i + 1);
+      var word = st === 'won' ? 'solved' : st === 'lost' ? 'not solved' : st === 'live' ? 'in progress' : 'not started';
+      b.setAttribute('aria-label', 'Case ' + (i + 1) + ', ' + word);
+      if (i === current) b.setAttribute('aria-current', 'true');
+      b.addEventListener('click', function () { goTo(i); });
+      elCases.appendChild(b);
+    });
+    elTally.textContent = 'Solved ' + solved + ' of ' + CASES.length + (played === CASES.length ? ' · all played' : '');
+  }
+
+  function renderBoard(opts) {
+    opts = opts || {};
+    var c = CASES[current], g = guessesOf(current), st = statusOf(current);
+    var done = st === 'won' || st === 'lost';
+    var wrong = g.length - (st === 'won' ? 1 : 0);
+    var left = MAX - g.length;
+
+    elTitle.textContent = 'Case ' + (current + 1);
+
+    var bones = '';
+    for (var b = 0; b < MAX; b++) {
+      var broken = b < wrong;
+      bones += boneSVG(broken, (opts.fresh && broken && b === wrong - 1) ? 'just-broke' : '');
+    }
+    elBones.innerHTML = bones;
+    elBones.className = 'bones' + (st === 'won' && opts.fresh ? ' is-won' : '');
+    elBones.setAttribute('aria-label', (MAX - wrong) + ' of ' + MAX + ' bones intact');
+    elLivesText.textContent = done ? (st === 'won' ? 'Solved in ' + g.length : 'No guesses left')
+      : left + (left === 1 ? ' guess left' : ' guesses left');
+
+    var visible = done ? MAX : Math.min(MAX, g.length + 1);
+    elClues.textContent = '';
+    for (var i = 0; i < MAX; i++) {
+      var li;
+      if (i < visible) {
+        li = make('li', 'clue' + (opts.fresh && !done && i === visible - 1 ? ' is-new' : ''));
+        li.appendChild(make('span', 'clue-n', String(i + 1)));
+        li.appendChild(make('p', 'clue-text', c.clues[i]));
+      } else {
+        li = make('li', 'clue is-locked');
+        li.appendChild(make('span', 'clue-n', String(i + 1)));
+        li.appendChild(make('p', 'clue-text', 'Locked'));
+      }
+      elClues.appendChild(li);
+    }
+
+    elForm.hidden = done;
+    elHint.textContent = '';
+
+    elHistory.hidden = g.length === 0;
+    elGuesses.textContent = '';
+    g.forEach(function (id, k) {
+      var row = make('li', 'guess' + (id === null ? ' is-pass' : '') + (opts.fresh && k === g.length - 1 ? ' is-fresh' : ''));
+      row.appendChild(make('span', 'guess-n', String(k + 1)));
+      var tile = make('div', 'gtile');
+      if (id === null) {
+        row.appendChild(make('span', 'guess-name', 'Passed'));
+        tile.classList.add('s-pass');
+        tile.appendChild(make('b', '', 'No guess'));
+      } else {
+        var d = BY_ID[id];
+        row.appendChild(make('span', 'guess-name', d.name));
+        var state = id === c.answer ? 'hit' : d.ch === BY_ID[c.answer].ch ? 'near' : 'miss';
+        tile.classList.add('s-' + state);
+        tile.appendChild(make('b', '', state === 'hit' ? 'Correct' : state === 'near' ? 'Right chapter' : 'Wrong chapter'));
+        tile.appendChild(make('span', '', CH[d.ch]));
+      }
+      row.appendChild(tile);
+      elGuesses.appendChild(row);
+    });
+
+    elResult.hidden = !done;
+    elShareBox.hidden = true;
+    elShare.textContent = 'Copy result';
+    if (done) {
+      elResult.className = 'result is-' + st + (opts.fresh ? ' is-fresh' : '');
+      elKicker.textContent = st === 'won' ? 'Solved in ' + g.length + ' of ' + MAX : 'Out of bones';
+      elAnswer.textContent = BY_ID[c.answer].name;
+      elQuip.textContent = st === 'won' ? QUIPS[g.length] : QUIPS.lost;
+      elPearl.textContent = c.pearl;
+      var nxt = firstOpen(current + 1);
+      elNext.hidden = nxt === -1;
+      if (nxt !== -1) elNext.textContent = 'Next case (' + (nxt + 1) + ')';
+      if (nxt === -1) {
+        var solved = CASES.filter(function (_, i) { return statusOf(i) === 'won'; }).length;
+        elQuip.textContent += ' That is all ten cases: you solved ' + solved + '.';
+      }
+    }
+  }
+
+  function render(opts) { renderPicker(); renderBoard(opts); }
+
+  // ---------- game actions ----------
+  function goTo(i) {
+    current = i;
+    resetCombo();
+    render();
+  }
+
+  function submitGuess(id) {
+    if (isDone(current)) return;
+    var c = CASES[current];
+    if (id !== null && guessesOf(current).indexOf(id) !== -1) return;
+    progress[current] = guessesOf(current).concat([id]);
+    saveStore();
+    resetCombo();
+    render({ fresh: true });
+
+    var st = statusOf(current), g = guessesOf(current);
+    if (st === 'won') {
+      elLive.textContent = 'Correct. ' + BY_ID[c.answer].name + '. Solved in ' + g.length + '.';
+      elResult.focus({ preventScroll: true });
+      elResult.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else if (st === 'lost') {
+      elLive.textContent = 'Out of guesses. The diagnosis was ' + BY_ID[c.answer].name + '.';
+      elResult.focus({ preventScroll: true });
+      elResult.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+      var verdict = id === null ? 'Passed.' : (BY_ID[id].ch === BY_ID[c.answer].ch ? 'Right chapter, wrong diagnosis.' : 'Wrong chapter.');
+      elLive.textContent = verdict + ' Clue ' + (g.length + 1) + ': ' + c.clues[g.length];
+      elInput.focus({ preventScroll: true });
+    }
+  }
+
+  // ---------- combobox ----------
+  function resetCombo() {
+    elInput.value = '';
+    selected = null;
+    closeList();
+    elGuessBtn.disabled = true;
+  }
+  function computeMatches() {
+    var q = norm(elInput.value);
+    var used = {};
+    guessesOf(current).forEach(function (id) { if (id) used[id] = true; });
+    var toks = q ? q.split(' ') : [];
+    var out = DX.filter(function (d) {
+      if (used[d.id]) return false;
+      for (var t = 0; t < toks.length; t++) if (d.key.indexOf(toks[t]) === -1) return false;
+      return true;
+    });
+    if (q) {
+      var rank = function (d) { return d.nameKey.indexOf(q) === 0 ? 0 : d.nameKey.indexOf(q) !== -1 ? 1 : 2; };
+      out.sort(function (a, b) { return rank(a) - rank(b) || a.name.localeCompare(b.name); });
+    }
+    return out;
+  }
+  function renderList() {
+    elList.textContent = '';
+    if (!matches.length) {
+      elList.appendChild(make('li', 'is-empty', 'No match. Try fewer letters, or a region such as “knee”.'));
+      elInput.removeAttribute('aria-activedescendant');
+      return;
+    }
+    matches.forEach(function (d, i) {
+      var li = make('li');
+      li.id = 'opt-' + d.id;
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', i === active ? 'true' : 'false');
+      li.dataset.id = d.id;
+      li.appendChild(make('span', 'opt-name', d.name));
+      li.appendChild(make('span', 'opt-ch', CH[d.ch]));
+      elList.appendChild(li);
+    });
+    if (active >= 0) elInput.setAttribute('aria-activedescendant', 'opt-' + matches[active].id);
+    else elInput.removeAttribute('aria-activedescendant');
+  }
+  function openList() {
+    matches = computeMatches();
+    active = matches.length && norm(elInput.value) ? 0 : -1;
+    listOpen = true;
+    elList.hidden = false;
+    elInput.setAttribute('aria-expanded', 'true');
+    renderList();
+  }
+  function closeList() {
+    listOpen = false;
+    active = -1;
+    elList.hidden = true;
+    elInput.setAttribute('aria-expanded', 'false');
+    elInput.removeAttribute('aria-activedescendant');
+  }
+  function moveActive(delta) {
+    if (!listOpen) { openList(); if (!matches.length) return; active = delta > 0 ? 0 : matches.length - 1; }
+    else if (!matches.length) return;
+    else active = (active + delta + matches.length) % matches.length;
+    renderList();
+    var node = elList.children[active];
+    if (node && node.scrollIntoView) node.scrollIntoView({ block: 'nearest' });
+  }
+  function choose(d) {
+    elInput.value = d.name;
+    selected = d.id;
+    elGuessBtn.disabled = false;
+    elHint.textContent = '';
+    closeList();
+  }
+
+  elInput.addEventListener('input', function () {
+    var q = norm(elInput.value);
+    var exact = null;
+    if (q) DX.forEach(function (d) { if (d.nameKey === q && guessesOf(current).indexOf(d.id) === -1) exact = d.id; });
+    selected = exact;
+    elGuessBtn.disabled = !selected;
+    elHint.textContent = '';
+    openList();
+  });
+  // The list opens on a tap, on typing or on the arrow keys, never on focus alone:
+  // focus returns here after every guess and the list would cover the buttons.
+  elInput.addEventListener('click', function () { if (!listOpen && !selected) openList(); });
+  elInput.addEventListener('blur', function () { setTimeout(closeList, 120); });
+  elInput.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+    else if (e.key === 'Escape') { if (listOpen) { e.preventDefault(); closeList(); } }
+    else if (e.key === 'Enter') {
+      if (listOpen && active >= 0 && matches[active]) { e.preventDefault(); choose(matches[active]); }
+    }
+  });
+  elList.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  elList.addEventListener('click', function (e) {
+    var li = e.target.closest('li[data-id]');
+    if (li) { choose(BY_ID[li.dataset.id]); elInput.focus({ preventScroll: true }); }
+  });
+  elForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!selected) { elHint.textContent = 'Pick a diagnosis from the list first.'; elInput.focus(); return; }
+    submitGuess(selected);
+  });
+  elPassBtn.addEventListener('click', function () { submitGuess(null); });
+
+  // ---------- result actions ----------
+  elNext.addEventListener('click', function () {
+    var nxt = firstOpen(current + 1);
+    if (nxt !== -1) { goTo(nxt); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  });
+  function shareText() {
+    var c = CASES[current], g = guessesOf(current), st = statusOf(current);
+    var grid = g.map(function (id) {
+      if (id === null) return '⬛';
+      if (id === c.answer) return '🟩';
+      return BY_ID[id].ch === BY_ID[c.answer].ch ? '🟨' : '⬜';
+    }).join('');
+    return 'Orthopaedle · Case ' + (current + 1) + ' · ' + (st === 'won' ? g.length : 'X') + '/' + MAX + '\n' + grid;
+  }
+  elShare.addEventListener('click', function () {
+    var text = shareText();
+    var fallback = function () {
+      elShareBox.hidden = false;
+      elShareBox.value = text;
+      elShareBox.focus();
+      elShareBox.select();
+      elShare.textContent = 'Select and copy below';
+    };
+    try {
+      navigator.clipboard.writeText(text).then(function () { elShare.textContent = 'Copied'; }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  // ---------- reset ----------
+  function drawReset(confirming) {
+    elResetRow.textContent = '';
+    if (!confirming) {
+      var b = make('button', 'btn is-quiet', 'Reset all progress');
+      b.type = 'button'; b.id = 'reset-btn';
+      b.addEventListener('click', function () { drawReset(true); });
+      elResetRow.appendChild(b);
+      return;
+    }
+    elResetRow.appendChild(make('span', '', 'Wipe all ten cases?'));
+    var yes = make('button', 'btn is-quiet', 'Yes, reset');
+    yes.type = 'button'; yes.id = 'reset-yes';
+    yes.addEventListener('click', function () {
+      progress = {}; saveStore(); current = 0; resetCombo(); render(); drawReset(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    var no = make('button', 'btn is-quiet', 'Keep playing');
+    no.type = 'button'; no.id = 'reset-no';
+    no.addEventListener('click', function () { drawReset(false); });
+    elResetRow.appendChild(yes); elResetRow.appendChild(no);
+    yes.focus();
+  }
+
+  // ---------- boot ----------
+  function start(data) {
+    if (data && data.progress) {
+      progress = sanitise(data.progress);
+      current = (typeof data.current === 'number' && CASES[data.current]) ? data.current : 0;
+    } else {
+      progress = loadStore();
+      var open = firstOpen(0);
+      current = open === -1 ? 0 : open;
+    }
+    var untouched = Object.keys(progress).length === 0;
+    $('howto').open = untouched;
+    drawReset(false);
+    render();
+  }
+
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { progress: progress, current: current }; });
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+
+})();
+</script>
+</body>
+</html>
